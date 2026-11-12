@@ -510,7 +510,7 @@ function mountPostcode(){
 }
 function mAddr(me){
   var m=S.m;
-  if(m.addrOpen) return '<div class="m-page"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 8px 20px;border-bottom:1px solid var(--line)"><h1 style="font-size:18px">주소 검색</h1><button type="button" class="btn sm" data-a="m-addr-close">닫기</button></div><div id="pc-wrap" style="flex-grow:1;min-height:560px;position:relative"></div></div>';
+  if(m.addrOpen) return '<div class="m-page"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 8px 20px;border-bottom:1px solid var(--line)"><h1 style="font-size:18px">주소 검색</h1><button type="button" class="btn sm" data-a="m-addr-close">닫기</button></div><div id="pc-wrap" style="position:relative;width:100%;min-height:440px;height:calc(100vh - 62px);height:calc(100dvh - 62px)"></div></div>';
   var body;
   if(m.manual) body='<div class="fld"><label for="m-addr">받으실 주소</label><textarea class="in" style="font-size:16px" id="m-addr" rows="3" data-f="m.addr" placeholder="우편번호, 도로명 주소, 상세 주소">'+esc(m.addr)+'</textarea></div><button type="button" class="btn sm" style="align-self:flex-start" data-a="m-manual">주소 검색으로 입력하기</button>';
   else body='<button type="button" class="btn line big" style="font-size:16px" data-a="m-addr-open">'+(m.road?'주소 다시 검색':'주소 검색')+'</button>'+
