@@ -83,6 +83,7 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 .m-sheet{flex-grow:1;background:#fff;border-radius:24px 24px 0 0;padding:28px 24px 0;display:flex;flex-direction:column;gap:18px}
 .m-greet{flex-grow:1;display:flex;flex-direction:column;background:var(--acc)}
 .m-body{white-space:pre-line;font-size:16px;line-height:1.8;overflow-wrap:anywhere}
+.gimg{display:block;width:100%;max-height:280px;object-fit:contain;border-radius:12px}
 .m-dday{background:var(--bg);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px}
 .pill{background:var(--acc);color:#fff;font-weight:700;padding:3px 10px;border-radius:999px;flex-shrink:0;font-size:14px}
 .m-foot{background:#fff;padding:16px 24px 28px;display:flex;flex-direction:column;gap:12px}
@@ -134,7 +135,7 @@ function personLink(p){ return BASE_URL+'#t-'+p.token; }
 var VIEWS = ['home','products','total','dashboard','people','greeting','mobile'];
 var PROJECT_VIEWS = ['dashboard','people','greeting'];
 var STATUS = [['prep','준비중'],['open','진행중'],['closed','마감'],['ordered','발주 완료'],['shipped','배송 완료']];
-var DEFAULT_CONFIG = { name:'', client:'', status:'prep', top:'', title:'{이름}님께 신발을 선물합니다', body:'', sender:'', start:'', end:'', ship:'company', productIds:null };
+var DEFAULT_CONFIG = { name:'', client:'', status:'prep', top:'', title:'{이름}님께 신발을 선물합니다', body:'', sender:'', start:'', end:'', ship:'company', productIds:null, imageId:null };
 var S = {
   view:'home', auth:'loading', login:{email:'',pw:'',err:''}, pid:null, link:null, linkOk:false, linkDone:false, ready:false, slow:false, local:false, failed:false,
   products:[], people:[], logs:[], projects:[],
@@ -249,10 +250,13 @@ function route(){ var h=(location.hash||'').replace('#','');
   if(h.indexOf('t-')===0){ S.link=h.slice(2); S.linkDone=false; S.linkOk=false; S.view='mobile'; return; }
   S.link=null; S.view = VIEWS.indexOf(h)>=0 ? h : 'home'; if(S.view==='greeting' && S.ready) S.cfg=cloneCfg(); }
 function cloneCfg(){ var c=cfg(), o={}; for(var k in DEFAULT_CONFIG) o[k]=c[k]; o.productIds = c.productIds ? c.productIds.slice() : null; return o; }
-function schedule(){ if(composing){ pending=true; return; } if(pending) return; pending=true; requestAnimationFrame(function(){ pending=false; render(); }); }
+var queued=false;
+function typing(){ var a=document.activeElement; return !!a && (a.tagName==='TEXTAREA' || (a.tagName==='INPUT' && !/^(checkbox|radio|file|date|button|submit)$/.test(a.type||''))); }
+function schedule(){ pending=true; if(queued) return; queued=true; requestAnimationFrame(function(){ queued=false; if(!pending || composing || typing()) return; render(); }); }
 
 /* ---------- 화면 ---------- */
 function render(){
+  pending=false;
   var ae=document.activeElement, fid=ae&&ae.id, ss=null, se=null;
   try{ ss=ae.selectionStart; se=ae.selectionEnd; }catch(e){}
   if(S.ready && !S.link && S.auth==='in' && S.pid && !curProject()) setPid(null);
@@ -413,12 +417,12 @@ function vPeople(){
 
 function previewInner(){
   var c=S.cfg||cfg();
-  return '<div style="padding:32px 18px 18px;color:#fff;text-align:center;display:flex;flex-direction:column;gap:8px"><div style="font-size:12px">'+esc(c.top||((c.client||'[고객사명]')+'에서 드리는 선물'))+'</div><div style="font-size:19px;font-weight:700;line-height:1.35">'+esc((c.title||DEFAULT_CONFIG.title).split('{이름}').join('홍길동'))+'</div></div><div style="flex-grow:1;background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 16px;display:flex;flex-direction:column;gap:12px"><div style="white-space:pre-line;line-height:1.75;overflow-wrap:anywhere">'+(c.body?esc(c.body):'<span class="small">인삿말 본문을 입력하면 여기에 보여요.</span>')+'</div><div style="font-weight:700;text-align:right;font-size:12px">'+esc(c.sender)+'</div><div style="flex-grow:1"></div>'+(c.end?'<div class="m-dday" style="font-size:12px"><span class="pill" style="font-size:12px">'+ddayLabel(dday(c.end))+'</span><span>'+fmtDate(c.end)+'까지 골라 주세요</span></div>':'')+'<div style="min-height:42px;border-radius:10px;background:var(--acc);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">선물 고르러 가기</div></div>';
+  return '<div style="padding:32px 18px 18px;color:#fff;text-align:center;display:flex;flex-direction:column;gap:8px"><div style="font-size:12px">'+esc(c.top||((c.client||'[고객사명]')+'에서 드리는 선물'))+'</div><div style="font-size:19px;font-weight:700;line-height:1.35">'+esc((c.title||DEFAULT_CONFIG.title).split('{이름}').join('홍길동'))+'</div></div><div style="flex-grow:1;background:#fff;border-radius:18px 18px 0 0;padding:20px 18px 16px;display:flex;flex-direction:column;gap:12px"><div style="white-space:pre-line;line-height:1.75;overflow-wrap:anywhere">'+(c.body?esc(c.body):'<span class="small">인삿말 본문을 입력하면 여기에 보여요.</span>')+'</div><div style="font-weight:700;text-align:right;font-size:12px">'+esc(c.sender)+'</div>'+(c.imageId?'<img class="gimg" style="max-height:200px" alt="" src="'+img(c.imageId)+'">':'')+'<div style="flex-grow:1"></div>'+(c.end?'<div class="m-dday" style="font-size:12px"><span class="pill" style="font-size:12px">'+ddayLabel(dday(c.end))+'</span><span>'+fmtDate(c.end)+'까지 골라 주세요</span></div>':'')+'<div style="min-height:42px;border-radius:10px;background:var(--acc);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center">선물 고르러 가기</div></div>';
 }
 function vGreeting(){
   var c=S.cfg; if(!c) return loading();
   var h='<div class="head"><div><div class="small">'+esc(projName())+'</div><h1>인삿말·설정</h1><div class="sub">왼쪽에 쓰면 오른쪽 미리보기에 바로 보여요. 저장해야 직원 화면에 반영돼요.</div></div><div class="acts"><button type="button" class="btn" data-a="cfg-reset">되돌리기</button><button type="button" class="btn pri" data-a="cfg-save">저장</button></div></div>';
-  h+='<div class="row"><div class="col g3"><section class="card"><h2>인삿말</h2><div class="grid"><div class="fld"><label for="c-name">프로젝트명 (관리자만 봐요)</label><input class="in" id="c-name" data-f="cfg.name" value="'+esc(c.name)+'" placeholder="예) ○○전자 2026 연말 선물"></div><div class="fld"><label for="c-client">고객사명</label><input class="in" id="c-client" data-f="cfg.client" value="'+esc(c.client)+'" placeholder="예) ○○전자"></div><div class="fld"><label for="c-top">상단 문구 (비우면 자동)</label><input class="in" id="c-top" data-f="cfg.top" value="'+esc(c.top)+'" placeholder="[고객사명]에서 드리는 선물"></div></div><div class="fld"><label for="c-title">제목</label><input class="in" id="c-title" data-f="cfg.title" value="'+esc(c.title)+'"><div class="small">{이름}이라고 쓰면 받는 분 이름으로 자동으로 바뀌어요.</div></div><div class="fld"><label for="c-body">인삿말 본문</label><textarea class="in" id="c-body" rows="6" data-f="cfg.body" placeholder="예) 한 해 동안 함께 애써 주신 임직원 여러분께 감사의 마음을 담아 작은 선물을 준비했습니다.">'+esc(c.body)+'</textarea><div class="small" id="c-count">'+c.body.length+'자 · 300자 안쪽을 추천해요</div></div><div class="fld"><label for="c-sender">보내는 사람</label><input class="in" id="c-sender" data-f="cfg.sender" value="'+esc(c.sender)+'" placeholder="예) 대표이사 ○○○ 드림"></div></section>';
+  h+='<div class="row"><div class="col g3"><section class="card"><h2>인삿말</h2><div class="grid"><div class="fld"><label for="c-name">프로젝트명 (관리자만 봐요)</label><input class="in" id="c-name" data-f="cfg.name" value="'+esc(c.name)+'" placeholder="예) ○○전자 2026 연말 선물"></div><div class="fld"><label for="c-client">고객사명</label><input class="in" id="c-client" data-f="cfg.client" value="'+esc(c.client)+'" placeholder="예) ○○전자"></div><div class="fld"><label for="c-top">상단 문구 (비우면 자동)</label><input class="in" id="c-top" data-f="cfg.top" value="'+esc(c.top)+'" placeholder="[고객사명]에서 드리는 선물"></div></div><div class="fld"><label for="c-title">제목</label><input class="in" id="c-title" data-f="cfg.title" value="'+esc(c.title)+'"><div class="small">{이름}이라고 쓰면 받는 분 이름으로 자동으로 바뀌어요.</div></div><div class="fld"><label for="c-body">인삿말 본문</label><textarea class="in" id="c-body" rows="6" data-f="cfg.body" placeholder="예) 한 해 동안 함께 애써 주신 임직원 여러분께 감사의 마음을 담아 작은 선물을 준비했습니다.">'+esc(c.body)+'</textarea><div class="small" id="c-count">'+c.body.length+'자 · 300자 안쪽을 추천해요</div></div><div class="fld"><label for="c-sender">보내는 사람</label><input class="in" id="c-sender" data-f="cfg.sender" value="'+esc(c.sender)+'" placeholder="예) 대표이사 ○○○ 드림"></div><div class="fld"><span class="lbl">인삿말 사진 (선택)</span><div class="small">로고나 인삿말 이미지를 한 장 넣을 수 있어요. 보내는 사람 아래에 보여요. 5MB 이하로 올려 주세요.</div>'+(c.imageId?'<div class="imgs"><div class="it"><img alt="인삿말 사진" src="'+img(c.imageId)+'" style="width:120px;height:120px;object-fit:contain"><button type="button" class="x" aria-label="인삿말 사진 빼기" data-a="cfg-rmimg">×</button></div></div>':'')+(assets?'<input class="in" style="padding:10px 14px" type="file" accept="image/*" id="up-greet" data-up="greet" aria-label="인삿말 사진 올리기">':'')+(S.busy==='up'?'<div class="small">사진을 올리는 중이에요…</div>':'')+'</div></section>';
   var all=!c.productIds;
   h+='<section class="card"><h2>선택 조건</h2><div class="grid"><div class="fld"><label for="c-start">시작일</label><input class="in" id="c-start" type="date" data-c="cfg.start" value="'+esc(c.start)+'"></div><div class="fld"><label for="c-end">마감일</label><input class="in" id="c-end" type="date" data-c="cfg.end" value="'+esc(c.end)+'"></div><div class="fld"><span class="lbl">1인당 수량</span><div class="in" style="display:flex;align-items:center;background:var(--bg)">1켤레 (데모 고정)</div></div></div><fieldset style="border:0;margin:0;padding:0"><legend class="lbl" style="padding:0">배송 방식</legend><label class="chk"><input type="radio" name="ship" value="company" data-c="cfg.ship"'+(c.ship!=='personal'?' checked':'')+'>회사로 일괄 배송</label><label class="chk"><input type="radio" name="ship" value="personal" data-c="cfg.ship"'+(c.ship==='personal'?' checked':'')+'>개인별 배송 (직원이 주소 입력)</label></fieldset><fieldset style="border:0;margin:0;padding:0"><legend class="lbl" style="padding:0">이 고객사에 보여줄 신발</legend>'+(S.products.length?'<div class="grid" style="gap:0 12px">'+S.products.map(function(p){ return '<label class="chk"><input type="checkbox" data-pid="'+esc(p.id)+'"'+((all||c.productIds.indexOf(p.id)>=0)?' checked':'')+'>'+esc(p.name)+'</label>'; }).join('')+'</div>':'<div class="small">등록한 신발이 없어요. <a href="#products">상품 관리</a>에서 먼저 등록해 주세요.</div>')+'</fieldset></section></div>';
   h+='<section class="card g1" style="align-items:center" aria-label="모바일 미리보기"><h2 style="align-self:flex-start">모바일 미리보기</h2><div class="pv" id="pv">'+previewInner()+'</div><div class="small" style="text-align:center">받는 분 이름은 "홍길동"으로 예시를 보여줘요.</div></section></div>';
@@ -452,7 +456,7 @@ function mScreen(){
   if(me && m.step==='detail' && product(m.productId)) return mDetail(me, product(m.productId));
   if(me && m.step==='addr' && product(m.productId)) return mAddr(me);
   if(me && m.step==='done' && me.choice) return mDone(me);
-  return '<div class="m-greet"><div class="m-hero"><div class="ic"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M2.5 9h19V6h-19z"/><path d="M12 6v14"/><path d="M12 6c-1.5-3-5-3.5-5-1.5S9.500 6 12 6z"/><path d="M12 6c1.5-3 5-3.5 5-1.500S14.500 6 12 6z"/></svg></div><div style="font-size:15px;font-weight:500">'+esc(c.top||((c.client||'[고객사명]')+'에서 드리는 선물'))+'</div><h1>'+esc(personTitle(me&&me.name))+'</h1></div><div class="m-sheet"><div class="m-body">'+(c.body?esc(c.body):'<span class="small">관리자 화면의 인삿말·프로젝트 설정에서 인삿말을 입력해 주세요.</span>')+'</div><div style="font-weight:700;text-align:right">'+esc(c.sender)+'</div>'+(c.end?'<div class="m-dday"><span class="pill">'+ddayLabel(dd)+'</span><span>'+(dd<0?'선택 기간이 끝났어요':fmtDate(c.end)+'까지 골라 주세요')+'</span></div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-start">선물 고르러 가기</button></div></div>';
+  return '<div class="m-greet"><div class="m-hero"><div class="ic"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="9" width="17" height="11" rx="1.5"/><path d="M2.5 9h19V6h-19z"/><path d="M12 6v14"/><path d="M12 6c-1.5-3-5-3.5-5-1.5S9.500 6 12 6z"/><path d="M12 6c1.5-3 5-3.5 5-1.500S14.500 6 12 6z"/></svg></div><div style="font-size:15px;font-weight:500">'+esc(c.top||((c.client||'[고객사명]')+'에서 드리는 선물'))+'</div><h1>'+esc(personTitle(me&&me.name))+'</h1></div><div class="m-sheet"><div class="m-body">'+(c.body?esc(c.body):'<span class="small">관리자 화면의 인삿말·프로젝트 설정에서 인삿말을 입력해 주세요.</span>')+'</div><div style="font-weight:700;text-align:right">'+esc(c.sender)+'</div>'+(c.imageId?'<img class="gimg" alt="" src="'+img(c.imageId)+'">':'')+(c.end?'<div class="m-dday"><span class="pill">'+ddayLabel(dd)+'</span><span>'+(dd<0?'선택 기간이 끝났어요':fmtDate(c.end)+'까지 골라 주세요')+'</span></div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-start">선물 고르러 가기</button></div></div>';
 }
 function mList(me){
   var ps=projProducts(), c=cfg();
@@ -586,6 +590,7 @@ var ACT={
     var job = k==='remind' ? Promise.resolve() : seqEach(targets,function(p){ var d=strip(p); d.sentAt=now; return saveDoc('people',p.id,d); });
     job.then(function(){ return addLog(k==='remind'?'리마인드':'첫 안내', targets.length+'명 대상 · 문구를 직접 보낸 것으로 기록'); }).then(function(){ S.busy=''; S.modal=null; render(); toast('기록했어요.'); }).catch(function(e){ S.busy=''; render(); failMsg(e); });
   },
+  'cfg-rmimg':function(){ if(S.cfg){ S.cfg.imageId=null; render(); } },
   'cfg-reset':function(){ S.cfg=cloneCfg(); render(); },
   'cfg-save':function(){
     var c=S.cfg, cur=curProject(), data={}; if(!c||!cur) return; for(var k in DEFAULT_CONFIG) data[k]=c[k]; data.createdAt=cur.createdAt||Date.now();
@@ -669,6 +674,11 @@ document.addEventListener('change',function(e){
       var base=Date.now();
       return seqEach(list,function(p,i){ base+=1; return saveDoc('people',null,{projectId:S.pid,token:newToken(),name:p.name,team:p.team,phone:p.phone,createdAt:base}); }).then(function(){ S.busy=''; render(); toast(list.length+'명을 추가했어요.'); });
     }).catch(function(e){ S.busy=''; render(); if(e&&e.code) failMsg(e); else toast('파일을 읽지 못했어요. 엑셀이나 CSV 파일인지 확인해 주세요.'); });
+  } else if(up==='greet'){
+    var gf=t.files&&t.files[0]; if(!gf||!assets||!S.cfg) return;
+    if(gf.size>5*1024*1024){ toast('사진이 5MB보다 커요. 더 작은 파일로 올려 주세요.'); return; }
+    S.busy='up'; render();
+    assets.upload(gf).then(function(r){ S.busy=''; if(S.cfg) S.cfg.imageId=r.id; render(); toast('사진을 올렸어요. 저장을 눌러야 직원 화면에 반영돼요.'); },function(){ S.busy=''; render(); toast('사진을 올리지 못했어요. 파일 형식을 확인해 주세요.'); });
   } else if(up==='thumb'||up==='detail'){
     var files=Array.prototype.slice.call(t.files||[]); if(!files.length||!assets||!S.pd) return;
     S.busy='up'; render();
@@ -676,7 +686,8 @@ document.addEventListener('change',function(e){
   }
 });
 document.addEventListener('compositionstart',function(){ composing=true; });
-document.addEventListener('compositionend',function(){ composing=false; if(pending){ pending=false; schedule(); } });
+document.addEventListener('compositionend',function(){ composing=false; });
+document.addEventListener('focusout',function(){ setTimeout(function(){ if(pending) schedule(); },80); });
 window.addEventListener('hashchange',function(){ var was=S.link; route(); if(sb && S.link){ loadInvite(); } else if(sb && was){ S.pid=null; S.m=mReset(); bootAdmin(); } else render(); window.scrollTo(0,0); });
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && S.modal){ S.modal=null; render(); } if(e.key==='Enter' && e.target && (e.target.id==='lg-pw'||e.target.id==='lg-email') && !e.isComposing) ACT.login(); });
 init();
