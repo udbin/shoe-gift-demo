@@ -532,9 +532,9 @@ function mAddr(me){
   else body='<button type="button" class="btn line big" style="font-size:16px" data-a="m-addr-open">'+(m.road?'주소 다시 검색':'주소 검색')+'</button>'+
     (m.road ? '<div class="fld"><label for="m-zip">우편번호</label><input class="in" id="m-zip" style="background:var(--bg);font-size:16px" readonly value="'+esc(m.zip)+'"></div><div class="fld"><span class="lbl">주소</span><div class="in" style="background:var(--bg);font-size:16px;padding:12px 14px;display:flex;align-items:center;overflow-wrap:anywhere">'+esc(m.road)+'</div></div><div class="fld"><label for="m-addr2">상세 주소</label><input class="in" style="min-height:52px;font-size:16px" id="m-addr2" data-f="m.addr2" value="'+esc(m.addr2)+'" placeholder="동·호수 (없으면 비워 두세요)" autocomplete="off"></div>'
             : me.address ? '<div class="tip"><b>지금 저장된 주소</b>\n'+esc(me.address)+'\n바꾸려면 주소 검색을 눌러 주세요.</div>'
-            : '<p class="sub">도로명이나 건물 이름으로 검색하면 우편번호와 주소가 자동으로 채워져요.</p>')+
+            : '')+
     '<button type="button" class="btn sm" style="align-self:flex-start" data-a="m-manual">검색이 안 되면 직접 입력하기</button>';
-  return '<div class="m-page">'+backBtn('detail')+'<div class="m-pad"><h1>어디로 보내드릴까요?</h1>'+body+'<label class="chk" style="align-items:flex-start;font-size:14px"><input type="checkbox" id="m-agree" data-c="m.agree"'+(m.agree?' checked':'')+' style="width:22px;height:22px"><span>[필수] 선물 배송을 위한 주소 수집·이용에 동의합니다.</span></label>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-addr-save"'+(S.busy?' disabled':'')+'>선택 완료하기</button></div></div>';
+  return '<div class="m-page">'+backBtn('detail')+'<div class="m-pad"><h1>어디로 보내드릴까요?</h1>'+body+'<label class="chk" style="font-size:14px"><input type="checkbox" id="m-agree" data-c="m.agree"'+(m.agree?' checked':'')+' style="width:22px;height:22px"><span data-fit="1" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">[필수] 선물 배송을 위한 주소 수집·이용에 동의합니다.</span></label>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-addr-save"'+(S.busy?' disabled':'')+'>선택 완료하기</button></div></div>';
 }
 function mDone(me){
   var c=cfg(), ch=me.choice;
