@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script async src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <style>
 :root{--ink:#15181E;--sub:#5B6472;--line:#E3E6EB;--bg:#F4F5F7;--acc:#1F4FD8;--acct:#EAF0FF;--warn:#B4410E;--warnt:#FFF1E8;--bd:#C9CED6}
 *{box-sizing:border-box}
@@ -127,7 +128,7 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 "use strict";
-function mReset(){ return {step:'greet', personId:null, productId:null, size:null, img:0, err:'', name:'', last4:'', agree:false, addr:''}; }
+function mReset(){ return {step:'greet', personId:null, productId:null, size:null, img:0, err:'', name:'', last4:'', agree:false, addr:'', zip:'', road:'', addr2:'', addrOpen:false, manual:false}; }
 var BASE_URL = location.origin + location.pathname;
 var CFG = window.SHOE_CONFIG || {};
 function newToken(){ var a=new Uint8Array(20), s='', ch='abcdefghijklmnopqrstuvwxyz0123456789', i; try{ crypto.getRandomValues(a); }catch(e){ for(i=0;i<20;i++) a[i]=Math.floor(Math.random()*256); } for(i=0;i<20;i++) s+=ch[a[i]%36]; return s; }
@@ -252,7 +253,7 @@ function route(){ var h=(location.hash||'').replace('#','');
 function cloneCfg(){ var c=cfg(), o={}; for(var k in DEFAULT_CONFIG) o[k]=c[k]; o.productIds = c.productIds ? c.productIds.slice() : null; return o; }
 var queued=false;
 function typing(){ var a=document.activeElement; return !!a && (a.tagName==='TEXTAREA' || (a.tagName==='INPUT' && !/^(checkbox|radio|file|date|button|submit)$/.test(a.type||''))); }
-function schedule(){ pending=true; if(queued) return; queued=true; requestAnimationFrame(function(){ queued=false; if(!pending || composing || typing()) return; render(); }); }
+function schedule(){ pending=true; if(queued) return; queued=true; requestAnimationFrame(function(){ queued=false; if(!pending || composing || typing() || S.m.addrOpen) return; render(); }); }
 
 /* ---------- 화면 ---------- */
 function render(){
@@ -270,6 +271,7 @@ function render(){
   else if(S.auth==='notadmin') page=topBar()+gate('관리자로 등록되지 않은 계정이에요','<p class="sub">setup.sql의 관리자 이메일과 로그인한 이메일이 같은지 확인해 주세요.</p><button type="button" class="btn" data-a="logout">로그아웃</button>');
   else page=topBar()+(S.view==='mobile' ? mobileView() : adminView())+modalView();
   document.getElementById('app').innerHTML = page;
+  if(S.m.addrOpen && S.view==='mobile') mountPostcode();
   if(fid){ var el=document.getElementById(fid); if(el){ el.focus(); try{ if(ss!=null) el.setSelectionRange(ss,se); }catch(e){} } }
 }
 function gate(title,inner){ return '<div class="phonewrap"><section class="card" style="width:100%;max-width:420px"><h1 style="font-size:22px">'+title+'</h1>'+inner+'</section></div>'; }
@@ -397,18 +399,19 @@ function filteredPeople(){
     return !q || (p.name||'').indexOf(q)>=0 || (p.team||'').indexOf(q)>=0;
   });
 }
+function showAddr(){ return cfg().ship==='personal' || curPeople().some(function(p){return p.address;}); }
 function peopleRows(){
-  var list=filteredPeople();
-  if(!list.length) return '<tr><td colspan="6"><div class="empty">'+(curPeople().length?'조건에 맞는 대상자가 없어요.':'아직 대상자가 없어요. 엑셀로 올리거나 오른쪽에서 직접 추가해 주세요.')+'</div></td></tr>';
+  var list=filteredPeople(), sa=showAddr();
+  if(!list.length) return '<tr><td colspan="7"><div class="empty">'+(curPeople().length?'조건에 맞는 대상자가 없어요.':'아직 대상자가 없어요. 엑셀로 올리거나 오른쪽에서 직접 추가해 주세요.')+'</div></td></tr>';
   return list.map(function(p){
     var ch=p.choice ? esc(p.choice.productName||'')+' · '+esc(p.choice.size) : '-';
-    return '<tr><th scope="row">'+esc(p.name)+'</th><td>'+esc(p.team||'-')+'</td><td class="small">'+esc(maskPhone(p.phone))+'</td><td>'+statusBadge(p)+'</td><td>'+ch+'</td><td><div class="acts"><button type="button" class="btn sm line" data-a="pe-link" data-v="'+esc(p.id)+'">개인 링크</button><button type="button" class="btn sm" data-a="as-person" data-v="'+esc(p.id)+'">화면 보기</button>'+(S.confirm==='rl:'+p.id?'<button type="button" class="btn sm warn" data-a="pe-reissue" data-v="'+esc(p.id)+'">정말 재발급</button><button type="button" class="btn sm" data-a="cancel-confirm">취소</button>':'<button type="button" class="btn sm" data-a="ask" data-v="rl:'+esc(p.id)+'">링크 재발급</button>')+(p.choice?'<button type="button" class="btn sm" data-a="pe-reset" data-v="'+esc(p.id)+'">선택 초기화</button>':'')+(S.confirm==='pe:'+p.id?'<button type="button" class="btn sm warn" data-a="pe-del" data-v="'+esc(p.id)+'">정말 삭제</button><button type="button" class="btn sm" data-a="cancel-confirm">취소</button>':'<button type="button" class="btn sm" data-a="ask" data-v="pe:'+esc(p.id)+'">삭제</button>')+'</div></td></tr>';
+    return '<tr><th scope="row">'+esc(p.name)+'</th><td>'+esc(p.team||'-')+'</td><td class="small">'+esc(maskPhone(p.phone))+'</td><td>'+statusBadge(p)+'</td><td>'+ch+'</td>'+(sa?'<td style="min-width:220px;overflow-wrap:anywhere">'+(p.address?esc(p.address):'<span class="small">미입력</span>')+'</td>':'')+'<td><div class="acts"><button type="button" class="btn sm line" data-a="pe-link" data-v="'+esc(p.id)+'">개인 링크</button><button type="button" class="btn sm" data-a="as-person" data-v="'+esc(p.id)+'">화면 보기</button>'+(S.confirm==='rl:'+p.id?'<button type="button" class="btn sm warn" data-a="pe-reissue" data-v="'+esc(p.id)+'">정말 재발급</button><button type="button" class="btn sm" data-a="cancel-confirm">취소</button>':'<button type="button" class="btn sm" data-a="ask" data-v="rl:'+esc(p.id)+'">링크 재발급</button>')+(p.choice?'<button type="button" class="btn sm" data-a="pe-reset" data-v="'+esc(p.id)+'">선택 초기화</button>':'')+(S.confirm==='pe:'+p.id?'<button type="button" class="btn sm warn" data-a="pe-del" data-v="'+esc(p.id)+'">정말 삭제</button><button type="button" class="btn sm" data-a="cancel-confirm">취소</button>':'<button type="button" class="btn sm" data-a="ask" data-v="pe:'+esc(p.id)+'">삭제</button>')+'</div></td></tr>';
   }).join('');
 }
 function vPeople(){
   var f=S.filter, e=S.pe, lg=S.logs.filter(function(l){return l.projectId===S.pid;});
   var h='<div class="head"><div><div class="small">'+esc(projName())+'</div><h1>대상자·발송 관리</h1></div><div class="acts"><button type="button" class="btn warn" data-a="msg" data-v="remind">리마인드 문구 만들기</button><button type="button" class="btn pri" data-a="msg" data-v="first">카카오톡 안내 문구 만들기</button></div></div>';
-  h+='<div class="row"><section class="card g3"><div class="head"><h2>대상자 '+curPeople().length+'명</h2><div class="acts" style="align-items:center"><label class="small" for="f-q">검색</label><input class="in" style="width:160px" id="f-q" type="search" data-f="filter.q" value="'+esc(f.q)+'" placeholder="이름·부서"><label class="small" for="f-st">상태</label><select class="in" style="width:auto" id="f-st" data-c="filter.st"><option value="all"'+(f.st==='all'?' selected':'')+'>전체</option><option value="done"'+(f.st==='done'?' selected':'')+'>선택 완료</option><option value="wait"'+(f.st==='wait'?' selected':'')+'>미응답</option></select></div></div><div class="scroll"><table style="min-width:720px"><thead><tr><th scope="col">이름</th><th scope="col">부서</th><th scope="col">연락처</th><th scope="col">상태</th><th scope="col">선택 내용</th><th scope="col">관리</th></tr></thead><tbody id="people-body">'+peopleRows()+'</tbody></table></div><div class="small">직원마다 추측할 수 없는 개인 링크가 따로 있어요. 전화번호는 가운데 자리를 가려서 보여주고, 엑셀로 내려받을 때만 전체가 나와요.</div></section>';
+  h+='<div class="row"><section class="card g3"><div class="head"><h2>대상자 '+curPeople().length+'명</h2><div class="acts" style="align-items:center"><label class="small" for="f-q">검색</label><input class="in" style="width:160px" id="f-q" type="search" data-f="filter.q" value="'+esc(f.q)+'" placeholder="이름·부서"><label class="small" for="f-st">상태</label><select class="in" style="width:auto" id="f-st" data-c="filter.st"><option value="all"'+(f.st==='all'?' selected':'')+'>전체</option><option value="done"'+(f.st==='done'?' selected':'')+'>선택 완료</option><option value="wait"'+(f.st==='wait'?' selected':'')+'>미응답</option></select></div></div><div class="scroll"><table style="min-width:720px"><thead><tr><th scope="col">이름</th><th scope="col">부서</th><th scope="col">연락처</th><th scope="col">상태</th><th scope="col">선택 내용</th>'+(showAddr()?'<th scope="col">배송지</th>':'')+'<th scope="col">관리</th></tr></thead><tbody id="people-body">'+peopleRows()+'</tbody></table></div><div class="small">직원마다 추측할 수 없는 개인 링크가 따로 있어요. 전화번호는 가운데 자리를 가려서 보여주고, 엑셀로 내려받을 때만 전체가 나와요.</div></section>';
   h+='<div class="col g1"><section class="card"><h2>명단 엑셀 올리기</h2><div class="small">첫 줄에 이름, 부서, 연락처 제목이 있는 엑셀(.xlsx)이나 CSV 파일을 올려 주세요.</div><input class="in" style="padding:10px 14px" type="file" accept=".xlsx,.xls,.csv" id="up-people" data-up="people" aria-label="명단 엑셀 파일 올리기">'+(S.busy==='people'?'<div class="small">명단을 저장하는 중이에요…</div>':'')+(downloads?'<button type="button" class="btn" data-a="dl-template">엑셀 양식 내려받기</button>':'')+'</section>';
   h+='<section class="card"><h2>한 명씩 추가</h2><div class="fld"><label for="pe-name">이름</label><input class="in" id="pe-name" data-f="pe.name" value="'+esc(e.name)+'"></div><div class="fld"><label for="pe-team">부서</label><input class="in" id="pe-team" data-f="pe.team" value="'+esc(e.team)+'"></div><div class="fld"><label for="pe-phone">연락처</label><input class="in" id="pe-phone" type="tel" data-f="pe.phone" value="'+esc(e.phone)+'" placeholder="010-0000-0000"></div><button type="button" class="btn line" data-a="pe-add">추가</button></section>';
   h+='<section class="card"><h2>발송 이력</h2>'+(lg.length?'<div>'+lg.slice(0,8).map(function(l){ return '<div class="logi"><b>'+esc(l.title)+'</b><div class="small">'+fmtTime(l.createdAt)+'</div><div style="font-size:14px">'+esc(l.result)+'</div></div>'; }).join('')+'</div>':'<div class="small">아직 기록이 없어요.</div>')+'</section></div></div>';
@@ -460,7 +463,7 @@ function mScreen(){
 }
 function mList(me){
   var ps=projProducts(), c=cfg();
-  return '<div class="m-page"><div class="m-listhead"><div class="small" style="display:flex;justify-content:space-between"><span>'+esc(projName())+'</span><b style="color:var(--acc)">'+ddayLabel(dday(c.end))+'</b></div><h1>'+esc(me.name)+'님,<br>받고 싶은 신발을 골라 주세요</h1></div>'+(closed()?'<div class="banner" style="margin:12px 20px 0">선택 기간이 끝나서 지금은 바꿀 수 없어요.</div>':'')+'<div class="m-list">'+(ps.length?ps.map(function(p){ var s=p.sizes||[]; return '<button type="button" class="pcard" data-a="m-open" data-v="'+esc(p.id)+'">'+(p.thumbId?'<img alt="" src="'+img(p.thumbId)+'">':'<div class="ph">썸네일 이미지</div>')+'<div class="tx"><b>'+esc(p.name)+'</b><span class="small" style="font-size:12px">'+esc((p.desc||'').split('\n')[0])+'</span><span style="font-size:12px;color:var(--acc);font-weight:500">'+(s.length?s[0]+'~'+s[s.length-1]+'mm':'')+'</span></div></button>'; }).join(''):'<div class="empty" style="grid-column:1/-1">아직 고를 수 있는 신발이 준비되지 않았어요.</div>')+'</div></div>';
+  return '<div class="m-page"><div class="m-listhead"><div class="small" style="display:flex;justify-content:space-between"><span>'+esc(projName())+'</span><b style="color:var(--acc)">'+ddayLabel(dday(c.end))+'</b></div><h1>'+esc(me.name)+'님,<br>받고 싶은 신발을 골라 주세요</h1></div>'+(closed()?'<div class="banner" style="margin:12px 20px 0">선택 기간이 끝나서 지금은 바꿀 수 없어요.</div>':'')+'<div class="m-list">'+(ps.length?ps.map(function(p){ var s=p.sizes||[]; return '<button type="button" class="pcard" data-a="m-open" data-v="'+esc(p.id)+'">'+(p.thumbId?'<img alt="" src="'+img(p.thumbId)+'">':'<div class="ph">썸네일 이미지</div>')+'<div class="tx"><b>'+esc(p.name)+'</b><span style="font-size:12px;color:var(--acc);font-weight:500">'+(s.length?s[0]+'~'+s[s.length-1]+'mm':'')+'</span></div></button>'; }).join(''):'<div class="empty" style="grid-column:1/-1">아직 고를 수 있는 신발이 준비되지 않았어요.</div>')+'</div></div>';
 }
 function mDetail(me,p){
   var m=S.m, imgs=[p.thumbId].concat(p.detailIds||[]).filter(Boolean), i=Math.min(m.img,Math.max(imgs.length-1,0));
@@ -468,9 +471,32 @@ function mDetail(me,p){
   var so=p.soldOut||[];
   return '<div class="m-page">'+gal+'<div class="m-pad" style="padding-top:18px"><div><h1 style="font-size:22px">'+esc(p.name)+'</h1><p class="sub" style="white-space:pre-line">'+esc(p.desc||'')+'</p></div>'+(p.tip?'<div class="tip"><b>사이즈 팁</b>\n'+esc(p.tip)+'</div>':'')+'<div class="fld"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 style="font-size:16px">사이즈 선택 (mm)</h2><span class="small" style="font-size:12px">회색은 품절이에요</span></div><div class="sizes">'+(p.sizes||[]).map(function(s){ var out=so.indexOf(s)>=0; return '<button type="button" class="sz'+(m.size===s?' on':'')+'" aria-pressed="'+(m.size===s)+'"'+(out?' disabled':'')+' data-a="m-size" data-v="'+s+'">'+s+'</button>'; }).join('')+'</div></div>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot" style="border-top:1px solid var(--line)"><div class="sub">선택한 사이즈: <b style="color:var(--ink)">'+(m.size?m.size+'mm':'아직 고르지 않았어요')+'</b></div><button type="button" class="btn pri big" data-a="m-pick"'+((closed()||S.busy)?' disabled':'')+'>'+(closed()?'선택 기간이 끝났어요':'이 신발로 선물 받기')+'</button></div></div>';
 }
+function mountPostcode(){
+  var el=document.getElementById('pc-wrap');
+  if(!el || !window.daum || !window.daum.Postcode) return;
+  el.innerHTML='';
+  new window.daum.Postcode({
+    oncomplete:function(d){
+      var road=d.roadAddress||d.autoRoadAddress||d.address||d.jibunAddress||'';
+      if(d.buildingName) road+=' ('+d.buildingName+')';
+      S.m.zip=d.zonecode||''; S.m.road=road; S.m.addrOpen=false; S.m.manual=false; S.m.err='';
+      render();
+      var x=document.getElementById('m-addr2'); if(x) x.focus();
+    },
+    width:'100%', height:'100%'
+  }).embed(el,{autoClose:false});
+}
 function mAddr(me){
   var m=S.m;
-  return '<div class="m-page">'+backBtn('detail')+'<div class="m-pad"><h1>어디로 보내드릴까요?</h1><div class="fld"><label for="m-addr">받으실 주소</label><textarea class="in" style="font-size:16px" id="m-addr" rows="3" data-f="m.addr" placeholder="도로명 주소와 상세 주소">'+esc(m.addr)+'</textarea></div><label class="chk" style="align-items:flex-start;font-size:14px"><input type="checkbox" id="m-agree" data-c="m.agree"'+(m.agree?' checked':'')+' style="width:22px;height:22px"><span>[필수] 선물 배송을 위한 주소 수집·이용에 동의합니다.</span></label>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-addr-save"'+(S.busy?' disabled':'')+'>선택 완료하기</button></div></div>';
+  if(m.addrOpen) return '<div class="m-page"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 8px 20px;border-bottom:1px solid var(--line)"><h1 style="font-size:18px">주소 검색</h1><button type="button" class="btn sm" data-a="m-addr-close">닫기</button></div><div id="pc-wrap" style="flex-grow:1;min-height:560px;position:relative"></div></div>';
+  var body;
+  if(m.manual) body='<div class="fld"><label for="m-addr">받으실 주소</label><textarea class="in" style="font-size:16px" id="m-addr" rows="3" data-f="m.addr" placeholder="우편번호, 도로명 주소, 상세 주소">'+esc(m.addr)+'</textarea></div><button type="button" class="btn sm" style="align-self:flex-start" data-a="m-manual">주소 검색으로 입력하기</button>';
+  else body='<button type="button" class="btn line big" style="font-size:16px" data-a="m-addr-open">'+(m.road?'주소 다시 검색':'주소 검색')+'</button>'+
+    (m.road ? '<div class="fld"><label for="m-zip">우편번호</label><input class="in" id="m-zip" style="background:var(--bg);font-size:16px" readonly value="'+esc(m.zip)+'"></div><div class="fld"><span class="lbl">주소</span><div class="in" style="background:var(--bg);font-size:16px;padding:12px 14px;display:flex;align-items:center;overflow-wrap:anywhere">'+esc(m.road)+'</div></div><div class="fld"><label for="m-addr2">상세 주소</label><input class="in" style="min-height:52px;font-size:16px" id="m-addr2" data-f="m.addr2" value="'+esc(m.addr2)+'" placeholder="동·호수 (없으면 비워 두세요)" autocomplete="off"></div>'
+            : me.address ? '<div class="tip"><b>지금 저장된 주소</b>\n'+esc(me.address)+'\n바꾸려면 주소 검색을 눌러 주세요.</div>'
+            : '<p class="sub">도로명이나 건물 이름으로 검색하면 우편번호와 주소가 자동으로 채워져요.</p>')+
+    '<button type="button" class="btn sm" style="align-self:flex-start" data-a="m-manual">검색이 안 되면 직접 입력하기</button>';
+  return '<div class="m-page">'+backBtn('detail')+'<div class="m-pad"><h1>어디로 보내드릴까요?</h1>'+body+'<label class="chk" style="align-items:flex-start;font-size:14px"><input type="checkbox" id="m-agree" data-c="m.agree"'+(m.agree?' checked':'')+' style="width:22px;height:22px"><span>[필수] 선물 배송을 위한 주소 수집·이용에 동의합니다.</span></label>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot"><button type="button" class="btn pri big" data-a="m-addr-save"'+(S.busy?' disabled':'')+'>선택 완료하기</button></div></div>';
 }
 function mDone(me){
   var c=cfg(), ch=me.choice;
@@ -530,7 +556,7 @@ function seqEach(list,fn){ return list.reduce(function(p,x){ return p.then(funct
 
 /* ---------- 동작 ---------- */
 function setPath(path,val){ var p=path.split('.'); var o=S[p[0]]; if(!o) return; o[p[1]]=val; }
-function mGo(step){ S.m.step=step; S.m.err=''; render(); window.scrollTo(0,0); }
+function mGo(step){ S.m.step=step; S.m.err=''; S.m.addrOpen=false; render(); window.scrollTo(0,0); }
 function choose(me,addr){
   var p=product(S.m.productId), data=strip(me);
   data.choice={productId:p.id,productName:p.name,size:S.m.size,at:Date.now()};
@@ -643,7 +669,18 @@ var ACT={
     if(cfg().ship==='personal'){ mGo('addr'); return; }
     choose(me,null);
   },
-  'm-addr-save':function(){ var m=S.m, me=person(m.personId); if(!me) return; if(m.addr.trim().length<5){ m.err='받으실 주소를 입력해 주세요.'; render(); return; } if(!m.agree){ m.err='주소 수집·이용에 동의해 주세요.'; render(); return; } choose(me,m.addr.trim()); }
+  'm-addr-open':function(){ if(!window.daum || !window.daum.Postcode){ S.m.manual=true; render(); toast('주소 검색을 불러오지 못했어요. 직접 입력해 주세요.'); return; } S.m.addrOpen=true; S.m.err=''; render(); window.scrollTo(0,0); },
+  'm-addr-close':function(){ S.m.addrOpen=false; render(); },
+  'm-manual':function(){ S.m.manual=!S.m.manual; S.m.err=''; render(); },
+  'm-addr-save':function(){
+    var m=S.m, me=person(m.personId), a; if(!me) return;
+    if(m.manual) a=m.addr.trim();
+    else if(m.road) a='('+m.zip+') '+m.road+(m.addr2.trim()?' '+m.addr2.trim():'');
+    else a=String(me.address||'').trim();
+    if(a.length<5){ m.err = m.manual ? '받으실 주소를 입력해 주세요.' : '주소 검색을 눌러 받으실 주소를 골라 주세요.'; render(); return; }
+    if(!m.agree){ m.err='주소 수집·이용에 동의해 주세요.'; render(); return; }
+    choose(me,a);
+  }
 };
 document.addEventListener('click',function(e){
   var t=e.target.closest ? e.target.closest('[data-a]') : null; if(!t || t.disabled) return;
