@@ -84,7 +84,7 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 .empty{padding:28px 12px;text-align:center;color:var(--sub)}
 .logi{padding:10px 0;border-bottom:1px solid var(--line)}
 .phonewrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 12px}
-.phone{width:100%;max-width:390px;min-height:780px;background:#fff;border:8px solid var(--ink);border-radius:32px;overflow:hidden;display:flex;flex-direction:column}
+.phone{width:100%;max-width:390px;min-height:780px;background:#fff;border:8px solid var(--ink);border-radius:32px;overflow:hidden;overflow:clip;display:flex;flex-direction:column}
 .pv{width:100%;max-width:300px;min-height:560px;border:6px solid var(--ink);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;background:var(--acc);font-size:13px}
 .m-hero{background:var(--acc);color:#fff;padding:48px 24px 28px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
 .m-hero .ic{width:72px;height:72px;border-radius:999px;background:#fff;color:var(--acc);display:flex;align-items:center;justify-content:center}
@@ -113,6 +113,14 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 .gal .back{position:absolute;left:4px;top:4px;background:#fff;margin:8px}
 .gal .nv{position:absolute;top:98px;width:44px;height:44px;border-radius:999px;border:0;background:#fff;cursor:pointer;font-size:18px}
 .gal .cnt{position:absolute;right:12px;bottom:12px;background:rgba(21,24,30,.75);color:#fff;border-radius:999px;padding:2px 10px;font-size:12px}
+.dimg{display:block;width:100%;height:auto;min-height:120px;background:#E9ECF1}
+.m-bar{position:sticky;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);padding:12px 20px 20px;display:flex;flex-direction:column;gap:8px}
+.sheet-bg{position:fixed;inset:0;z-index:15;background:rgba(21,24,30,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:390px;max-height:85vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:10px 20px 24px;display:flex;flex-direction:column;gap:14px}
+.sheet.up{animation:sheetup .25s ease-out}
+@keyframes sheetup{from{transform:translateY(100%)}to{transform:none}}
+@media(prefers-reduced-motion:reduce){.sheet.up{animation:none}}
+.grab{width:44px;height:5px;border-radius:999px;background:var(--bd);margin:0 auto}
 .tip{background:var(--acct);border-radius:12px;padding:12px 14px;font-size:13px;white-space:pre-line}
 .sizes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .sz{height:46px;border-radius:10px;border:1px solid var(--bd);background:#fff;font-weight:500;cursor:pointer}
@@ -136,7 +144,7 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 "use strict";
-function mReset(){ return {step:'greet', personId:null, productId:null, size:null, img:0, err:'', name:'', last4:'', agree:false, addr:'', zip:'', road:'', addr2:'', addrOpen:false, manual:false}; }
+function mReset(){ return {step:'greet', personId:null, productId:null, size:null, img:0, err:'', name:'', last4:'', agree:false, addr:'', zip:'', road:'', addr2:'', addrOpen:false, manual:false, sheet:false, sheetAnim:false}; }
 var BASE_URL = location.origin + location.pathname;
 var CFG = window.SHOE_CONFIG || {};
 function newToken(){ var a=new Uint8Array(20), s='', ch='abcdefghijklmnopqrstuvwxyz0123456789', i; try{ crypto.getRandomValues(a); }catch(e){ for(i=0;i<20;i++) a[i]=Math.floor(Math.random()*256); } for(i=0;i<20;i++) s+=ch[a[i]%36]; return s; }
@@ -474,10 +482,16 @@ function mList(me){
   return '<div class="m-page"><div class="m-listhead"><div class="small" style="display:flex;justify-content:space-between"><span>'+esc(projName())+'</span><b style="color:var(--acc)">'+ddayLabel(dday(c.end))+'</b></div><h1>'+esc(me.name)+'님,<br>받고 싶은 신발을 골라 주세요</h1></div>'+(closed()?'<div class="banner" style="margin:12px 20px 0">선택 기간이 끝나서 지금은 바꿀 수 없어요.</div>':'')+'<div class="m-list">'+(ps.length?ps.map(function(p){ var s=p.sizes||[]; return '<button type="button" class="pcard" data-a="m-open" data-v="'+esc(p.id)+'">'+(p.thumbId?'<img alt="" src="'+img(p.thumbId)+'">':'<div class="ph">썸네일 이미지</div>')+'<div class="tx"><b>'+esc(p.name)+'</b><span style="font-size:12px;color:var(--acc);font-weight:500">'+(s.length?s[0]+'~'+s[s.length-1]+'mm':'')+'</span></div></button>'; }).join(''):'<div class="empty" style="grid-column:1/-1">아직 고를 수 있는 신발이 준비되지 않았어요.</div>')+'</div></div>';
 }
 function mDetail(me,p){
-  var m=S.m, imgs=[p.thumbId].concat(p.detailIds||[]).filter(Boolean), i=Math.min(m.img,Math.max(imgs.length-1,0));
-  var gal='<div class="gal">'+(imgs.length?'<img alt="'+esc(p.name)+' 사진 '+(i+1)+'" src="'+img(imgs[i])+'">':'상세 이미지가 아직 없어요')+'<button type="button" class="back" aria-label="목록으로 돌아가기" data-a="m-go" data-v="list"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>'+(imgs.length>1?'<button type="button" class="nv" style="left:12px" aria-label="이전 사진" data-a="m-img" data-v="-1">‹</button><button type="button" class="nv" style="right:12px" aria-label="다음 사진" data-a="m-img" data-v="1">›</button><span class="cnt">'+(i+1)+' / '+imgs.length+'</span>':'')+'</div>';
-  var so=p.soldOut||[];
-  return '<div class="m-page">'+gal+'<div class="m-pad" style="padding-top:18px"><div><h1 style="font-size:22px">'+esc(p.name)+'</h1><p class="sub" style="white-space:pre-line">'+esc(p.desc||'')+'</p></div>'+(p.tip?'<div class="tip"><b>사이즈 팁</b>\n'+esc(p.tip)+'</div>':'')+'<div class="fld"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 style="font-size:16px">사이즈 선택 (mm)</h2><span class="small" style="font-size:12px">회색은 품절이에요</span></div><div class="sizes">'+(p.sizes||[]).map(function(s){ var out=so.indexOf(s)>=0; return '<button type="button" class="sz'+(m.size===s?' on':'')+'" aria-pressed="'+(m.size===s)+'"'+(out?' disabled':'')+' data-a="m-size" data-v="'+s+'">'+s+'</button>'; }).join('')+'</div></div>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'</div><div class="m-foot" style="border-top:1px solid var(--line)"><div class="sub">선택한 사이즈: <b style="color:var(--ink)">'+(m.size?m.size+'mm':'아직 고르지 않았어요')+'</b></div><button type="button" class="btn pri big" data-a="m-pick"'+((closed()||S.busy)?' disabled':'')+'>'+(closed()?'선택 기간이 끝났어요':'이 신발로 선물 받기')+'</button></div></div>';
+  var m=S.m, imgs=[p.thumbId].concat(p.detailIds||[]).filter(Boolean), so=p.soldOut||[], shut=closed();
+  var top='<div style="display:flex;align-items:center;gap:4px;padding:4px 12px 4px 4px;border-bottom:1px solid var(--line)"><button type="button" class="back" style="margin:0" aria-label="목록으로 돌아가기" data-a="m-go" data-v="list"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.name)+'</span></div>';
+  var pics = imgs.length ? imgs.map(function(id,i){ return '<img class="dimg" alt="'+esc(p.name)+' 사진 '+(i+1)+'" src="'+img(id)+'"'+(i>0?' loading="lazy"':'')+'>'; }) : ['<div class="gal" style="height:200px">상세 이미지가 아직 없어요</div>'];
+  var info='<div style="padding:18px 20px;display:flex;flex-direction:column;gap:12px"><h1 style="font-size:22px">'+esc(p.name)+'</h1>'+(p.desc?'<p class="sub" style="white-space:pre-line">'+esc(p.desc)+'</p>':'')+(p.tip?'<div class="tip"><b>사이즈 팁</b>\n'+esc(p.tip)+'</div>':'')+(pics.length>1?'<p class="small">아래로 내리면 상세 사진을 더 볼 수 있어요.</p>':'')+'</div>';
+  var bar='<div class="m-bar">'+(m.size?'<div class="sub">선택한 사이즈: <b style="color:var(--ink)">'+m.size+'mm</b></div>':'')+'<button type="button" class="btn pri big" data-a="m-sheet-open"'+(shut?' disabled':'')+'>'+(shut?'선택 기간이 끝났어요':m.size?'사이즈 바꾸기·선물 받기':'사이즈 선택하기')+'</button></div>';
+  var sheet='';
+  if(m.sheet && !shut){
+    sheet='<div class="sheet-bg"><div class="sheet'+(m.sheetAnim?' up':'')+'" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 id="sh-t" style="font-size:18px">사이즈 선택 (mm)</h2><button type="button" class="btn sm" data-a="m-sheet-close">닫기</button></div>'+(p.tip?'<div class="tip">'+esc(p.tip)+'</div>':'')+'<div class="sizes">'+(p.sizes||[]).map(function(s){ var out=so.indexOf(s)>=0; return '<button type="button" class="sz'+(m.size===s?' on':'')+'" aria-pressed="'+(m.size===s)+'"'+(out?' disabled':'')+' data-a="m-size" data-v="'+s+'">'+s+'</button>'; }).join('')+'</div><div class="small">회색은 품절이에요</div>'+(m.err?'<div class="err" role="alert">'+esc(m.err)+'</div>':'')+'<div class="sub">선택한 사이즈: <b style="color:var(--ink)">'+(m.size?m.size+'mm':'아직 고르지 않았어요')+'</b></div><button type="button" class="btn pri big" data-a="m-pick"'+(S.busy?' disabled':'')+'>이 신발로 선물 받기</button></div></div>';
+  }
+  return '<div class="m-page">'+top+pics[0]+info+pics.slice(1).join('')+'<div style="flex-grow:1"></div>'+bar+sheet+'</div>';
 }
 function mountPostcode(){
   var el=document.getElementById('pc-wrap');
@@ -564,7 +578,7 @@ function seqEach(list,fn){ return list.reduce(function(p,x){ return p.then(funct
 
 /* ---------- 동작 ---------- */
 function setPath(path,val){ var p=path.split('.'); var o=S[p[0]]; if(!o) return; o[p[1]]=val; }
-function mGo(step){ S.m.step=step; S.m.err=''; S.m.addrOpen=false; render(); window.scrollTo(0,0); }
+function mGo(step){ S.m.step=step; S.m.err=''; S.m.addrOpen=false; S.m.sheet=false; render(); window.scrollTo(0,0); }
 function choose(me,addr){
   var p=product(S.m.productId), data=strip(me);
   data.choice={productId:p.id,productName:p.name,size:S.m.size,at:Date.now()};
@@ -670,6 +684,8 @@ var ACT={
   },
   'm-open':function(v){ var me=person(S.m.personId); S.m.productId=v; S.m.img=0; S.m.size=(me&&me.choice&&me.choice.productId===v)?me.choice.size:null; mGo('detail'); },
   'm-img':function(v){ var p=product(S.m.productId); var n=[p.thumbId].concat(p.detailIds||[]).filter(Boolean).length; S.m.img=(S.m.img+Number(v)+n)%n; render(); },
+  'm-sheet-open':function(){ S.m.sheet=true; S.m.sheetAnim=true; S.m.err=''; render(); S.m.sheetAnim=false; },
+  'm-sheet-close':function(){ S.m.sheet=false; S.m.err=''; render(); },
   'm-size':function(v){ S.m.size=Number(v); S.m.err=''; render(); },
   'm-pick':function(){
     var m=S.m, me=person(m.personId); if(!me||closed()) return;
@@ -734,7 +750,7 @@ document.addEventListener('compositionstart',function(){ composing=true; });
 document.addEventListener('compositionend',function(){ composing=false; });
 document.addEventListener('focusout',function(){ setTimeout(function(){ if(pending) schedule(); },80); });
 window.addEventListener('hashchange',function(){ var was=S.link; route(); if(sb && S.link){ loadInvite(); } else if(sb && was){ S.pid=null; S.m=mReset(); bootAdmin(); } else render(); window.scrollTo(0,0); });
-document.addEventListener('keydown',function(e){ if(e.key==='Escape' && S.modal){ S.modal=null; render(); } if(e.key==='Enter' && e.target && (e.target.id==='lg-pw'||e.target.id==='lg-email') && !e.isComposing) ACT.login(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape' && S.modal){ S.modal=null; render(); } else if(e.key==='Escape' && S.m.sheet){ S.m.sheet=false; render(); } if(e.key==='Enter' && e.target && (e.target.id==='lg-pw'||e.target.id==='lg-email') && !e.isComposing) ACT.login(); });
 init();
 </script>
 </body>
