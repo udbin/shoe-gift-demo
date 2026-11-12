@@ -16,7 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script async src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<script async src="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <style>
 :root{--ink:#15181E;--sub:#5B6472;--line:#E3E6EB;--bg:#F4F5F7;--acc:#1F4FD8;--acct:#EAF0FF;--warn:#B4410E;--warnt:#FFF1E8;--bd:#C9CED6}
 *{box-sizing:border-box}
@@ -130,6 +130,8 @@ tr.sum td,tr.sum th{background:var(--acct);font-weight:700}
 .sumbox div{display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line)}
 .sumbox div:last-child{border-bottom:0}
 .sumbox span:first-child{color:var(--sub);flex-shrink:0}.sumbox span:last-child{font-weight:500;text-align:right;overflow-wrap:anywhere}
+.sumbox span.fit1{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sumbox span.fit2{flex:1;min-width:0;line-height:1.5;max-height:3em;overflow:hidden;overflow-wrap:anywhere}
 .err{color:var(--warn);font-size:14px;font-weight:500}
 .okic{width:72px;height:72px;border-radius:999px;background:var(--acct);color:var(--acc);display:flex;align-items:center;justify-content:center;margin:0 auto}
 .modal{position:fixed;inset:0;background:rgba(21,24,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
@@ -288,6 +290,7 @@ function render(){
   else page=topBar()+(S.view==='mobile' ? mobileView() : adminView())+modalView();
   document.getElementById('app').innerHTML = page;
   if(S.m.addrOpen && S.view==='mobile') mountPostcode();
+  fitAll();
   if(fid){ var el=document.getElementById(fid); if(el){ el.focus(); try{ if(ss!=null) el.setSelectionRange(ss,se); }catch(e){} } }
 }
 function gate(title,inner){ return '<div class="phonewrap"><section class="card" style="width:100%;max-width:420px"><h1 style="font-size:22px">'+title+'</h1>'+inner+'</section></div>'; }
@@ -493,11 +496,22 @@ function mDetail(me,p){
   }
   return '<div class="m-page">'+top+pics[0]+info+pics.slice(1).join('')+'<div style="flex-grow:1"></div>'+bar+sheet+'</div>';
 }
+function fitAll(){
+  var els=document.querySelectorAll('[data-fit]');
+  Array.prototype.forEach.call(els,function(el){
+    var size=15;
+    el.style.fontSize=size+'px';
+    function over(){ var r=document.createRange(); r.selectNodeContents(el); var t=r.getBoundingClientRect(), b=el.getBoundingClientRect(); return t.width>b.width+0.1 || t.height>b.height+0.6; }
+    while(size>9.5 && over()){ size-=0.5; el.style.fontSize=size+'px'; }
+  });
+}
+function postcodeApi(){ return (window.kakao && window.kakao.Postcode) || (window.daum && window.daum.Postcode) || null; }
 function mountPostcode(){
   var el=document.getElementById('pc-wrap');
-  if(!el || !window.daum || !window.daum.Postcode) return;
+  var PC=postcodeApi();
+  if(!el || !PC) return;
   el.innerHTML='';
-  new window.daum.Postcode({
+  new PC({
     oncomplete:function(d){
       var road=d.roadAddress||d.autoRoadAddress||d.address||d.jibunAddress||'';
       if(d.buildingName) road+=' ('+d.buildingName+')';
@@ -522,7 +536,7 @@ function mAddr(me){
 }
 function mDone(me){
   var c=cfg(), ch=me.choice;
-  return '<div class="m-page"><div class="m-pad" style="padding-top:56px;gap:24px"><div style="text-align:center;display:flex;flex-direction:column;gap:14px"><div class="okic"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1>선택이 완료됐어요</h1><p class="sub">'+(closed()?'선택 기간이 끝나서 더는 바꿀 수 없어요.':(c.end?fmtDate(c.end)+' 마감 전까지는<br>':'')+'같은 링크에서 언제든 바꿀 수 있어요.')+'</p></div><div class="sumbox"><div><span>받는 분</span><span>'+esc(me.name)+'</span></div><div><span>신발</span><span>'+esc(ch.productName)+'</span></div><div><span>사이즈</span><span style="color:var(--acc);font-weight:700">'+esc(ch.size)+'mm</span></div><div><span>받는 방법</span><span>'+(c.ship==='personal'?esc(me.address||'개인별 배송'):'회사로 일괄 배송')+'</span></div></div></div><div class="m-foot">'+(closed()?'':'<button type="button" class="btn line big" data-a="m-go" data-v="list">선택 변경하기</button>')+'</div></div>';
+  return '<div class="m-page"><div class="m-pad" style="padding-top:56px;gap:24px"><div style="text-align:center;display:flex;flex-direction:column;gap:14px"><div class="okic"><svg aria-hidden="true" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1>선택이 완료됐어요</h1><p class="sub">'+(closed()?'선택 기간이 끝나서 더는 바꿀 수 없어요.':(c.end?fmtDate(c.end)+' 마감 전까지는<br>':'')+'같은 링크에서 언제든 바꿀 수 있어요.')+'</p></div><div class="sumbox"><div><span>받는 분</span><span>'+esc(me.name)+'</span></div><div><span>신발</span><span class="fit1" data-fit="1">'+esc(ch.productName)+'</span></div><div><span>사이즈</span><span style="color:var(--acc);font-weight:700">'+esc(ch.size)+'mm</span></div><div><span>받는 방법</span><span class="fit2" data-fit="2">'+(c.ship==='personal'?esc(me.address||'개인별 배송'):'회사로 일괄 배송')+'</span></div></div></div><div class="m-foot">'+(closed()?'':'<button type="button" class="btn line big" data-a="m-go" data-v="list">선택 변경하기</button>')+'</div></div>';
 }
 
 /* ---------- 안내 문구 ---------- */
@@ -693,7 +707,7 @@ var ACT={
     if(cfg().ship==='personal'){ mGo('addr'); return; }
     choose(me,null);
   },
-  'm-addr-open':function(){ if(!window.daum || !window.daum.Postcode){ S.m.manual=true; render(); toast('주소 검색을 불러오지 못했어요. 직접 입력해 주세요.'); return; } S.m.addrOpen=true; S.m.err=''; render(); window.scrollTo(0,0); },
+  'm-addr-open':function(){ if(!postcodeApi()){ S.m.manual=true; render(); toast('주소 검색을 불러오지 못했어요. 직접 입력해 주세요.'); return; } S.m.addrOpen=true; S.m.err=''; render(); window.scrollTo(0,0); },
   'm-addr-close':function(){ S.m.addrOpen=false; render(); },
   'm-manual':function(){ S.m.manual=!S.m.manual; S.m.err=''; render(); },
   'm-addr-save':function(){
@@ -749,6 +763,8 @@ document.addEventListener('change',function(e){
 document.addEventListener('compositionstart',function(){ composing=true; });
 document.addEventListener('compositionend',function(){ composing=false; });
 document.addEventListener('focusout',function(){ setTimeout(function(){ if(pending) schedule(); },80); });
+window.addEventListener('resize',function(){ fitAll(); });
+try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ fitAll(); }); }catch(e){}
 window.addEventListener('hashchange',function(){ var was=S.link; route(); if(sb && S.link){ loadInvite(); } else if(sb && was){ S.pid=null; S.m=mReset(); bootAdmin(); } else render(); window.scrollTo(0,0); });
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && S.modal){ S.modal=null; render(); } else if(e.key==='Escape' && S.m.sheet){ S.m.sheet=false; render(); } if(e.key==='Enter' && e.target && (e.target.id==='lg-pw'||e.target.id==='lg-email') && !e.isComposing) ACT.login(); });
 init();
